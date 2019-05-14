@@ -1,4 +1,4 @@
-WorkflowName: chronos-fetch-antarctic
+WorkflowName: argo-github-sync
 TargetNamespace: argo-events
 grpc:
   enabled: false
@@ -20,6 +20,6 @@ ingress:
   tls:
   - secretName: tls-secret
     hosts:
-    - sync-tracks.#{tag}.saildrone.com
+    - github-sync.#{tag}.saildrone.com
   hosts:
-  - sync-tracks.#{tag}.saildrone.com
+  - github-sync.#{tag}.saildrone.com
