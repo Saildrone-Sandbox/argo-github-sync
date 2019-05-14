@@ -1,0 +1,67 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: github-secgroup-sync-
+spec:
+  volumeClaimTemplates:
+  - metadata:
+      name: scratch
+    spec:
+      accessModes: [ "ReadWriteMany" ]
+      storageClassName: "aws-efs"
+      resources:
+        requests:
+          storage: 1Mi #actually this is unlimited...
+  imagePullSecrets:
+    - name: regcred
+  serviceAccountName: argo-events-sa
+  ttlSecondsAfterFinished: 360
+  entrypoint: sync-secgroups
+  templates:
+  - name: sync-secgroups
+    steps:
+    - - name: get-github-ips
+        template: get-github-ips
+    - - name: update-aws-secgroup
+        template: update-aws-secgroup
+        arguments:
+          parameters:
+          - name: ipList
+            value: "{{steps.get-github-ips.outputs.result}}"
+
+
+  - name: get-github-ips
+    script:
+      image: gempesaw/curl-jq:latest
+      command: ["sh"]
+      source: |
+        curl https://api.github.com/meta | jq '. | .git + .hooks | .[]'
+
+  - name: update-aws-secgroup
+    inputs:
+      parameters:
+      - name: ipList
+    metadata:
+      annotations:
+        iam.amazonaws.com/role: 'k8/github-secgroup/auto-github-secgroup-update'
+    script:
+      image: mesosphere/aws-cli:1.14.5
+      env:
+      - name: IPS
+        value: "{{inputs.parameters.ipList}}"
+      - name: AUTO_SECGROUP
+        value: "sg-0a07dc10bfd595849"
+      - name: AWS_DEFAULT_REGION
+        value: us-west-1
+      command: [/bin/sh]
+      source: |
+        for ip in $IPS; do \
+          for port in 22 80 443 9048; do \
+             echo "adding allow $port to $ip"
+             SECGROUP_ARGS="--ip-permissions IpProtocol=tcp,FromPort=$port,ToPort=$port,IpRanges=[{CidrIp=$ip}]" \
+             aws ec2 authorize-security-group-ingress \
+               --group-id $AUTO_SECGROUP \
+               --ip-permissions IpProtocol=tcp,FromPort=$port,ToPort=$port,IpRanges=[{CidrIp=$ip}]\
+               || true
+           done;
+        done

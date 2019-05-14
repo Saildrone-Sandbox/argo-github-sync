@@ -1,0 +1,25 @@
+WorkflowName: chronos-fetch-antarctic
+TargetNamespace: argo-events
+grpc:
+  enabled: false
+
+# Trigger
+calendar:
+  enabled: true
+  schedule: "0 */12 * * * " # Run every 12 hours on midnight UTC
+
+webhook:
+  enabled: true
+  port: 12000
+  endpoint: "/trigger"
+  payload:
+    enabled: false
+
+ingress:
+  enabled: true
+  tls:
+  - secretName: tls-secret
+    hosts:
+    - sync-tracks.#{tag}.saildrone.com
+  hosts:
+  - sync-tracks.#{tag}.saildrone.com

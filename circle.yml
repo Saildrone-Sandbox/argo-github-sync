@@ -1,0 +1,28 @@
+machine:
+  services:
+    - docker
+
+checkout:
+  post:
+    - git clone git@github.com:Saildrone/k8-deploy-state.git /home/ubuntu/k8-deploy-state
+
+dependencies:
+  post:
+    - /home/ubuntu/k8-deploy-state/bin/circleScripts.sh install $QUAY_USERNAME $QUAY_PASSWORD
+test:
+  override:
+     # test commands would go here
+      - /bin/true
+deployment:
+  dev:
+    branch: dev 
+    commands:
+      - /home/ubuntu/k8-deploy-state/bin/circleScripts.sh deploy-workflow dev $CIRCLE_PROJECT_REPONAME argo/workflow.yaml
+  staging:
+    branch: master 
+    commands:
+      - /home/ubuntu/k8-deploy-state/bin/circleScripts.sh deploy-workflow staging $CIRCLE_PROJECT_REPONAME argo/workflow.yaml
+  prod:
+    branch: production 
+    commands:
+      - /home/ubuntu/k8-deploy-state/bin/circleScripts.sh deploy-workflow prod $CIRCLE_PROJECT_REPONAME argo/workflow.yaml
